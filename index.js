@@ -1,33 +1,50 @@
 const puppeteer = require("puppeteer");
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({
+    headless: false,
+    defaultViewport: false,
+  });
   const page = await browser.newPage();
 
-  await page.goto("https://developers.google.com/web/");
+  await page.goto("https://www.amazon.in/s?k=laptop+desk");
 
-  // Type into search box.
-  await page.type(".devsite-search-field", "Headless Chrome");
+  const products = await page.$$(
+    "div.s-main-slot.s-result-list.s-search-results.sg-row > .s-result-item"
+  );
 
-  // Wait for suggest overlay to appear and click "show all results".
-  const allResultsSelector = ".devsite-suggest-all-results";
-  await page.waitForSelector(allResultsSelector);
-  await page.click(allResultsSelector);
+  const items = [];
 
-  // Wait for the results page to load and display the results.
-  const resultsSelector = ".gsc-results .gs-title";
-  await page.waitForSelector(resultsSelector);
+  for (const product of products) {
+    let title = "Null";
+    let price = "Null";
+    let imgUrl = "Null";
 
-  // Extract the results from the page.
-  const links = await page.evaluate((resultsSelector) => {
-    return [...document.querySelectorAll(resultsSelector)].map((anchor) => {
-      const title = anchor.textContent.split("|")[0].trim();
-      return `${title} - ${anchor.href}`;
-    });
-  }, resultsSelector);
+    try {
+      title = await page.evaluate(
+        (el) => el.querySelector("h2 > a > span").textContent,
+        product
+      );
+    } catch (e) {}
 
-  // Print all the files.
-  console.log(links.join("\n"));
+    try {
+      price = await page.evaluate(
+        (el) => el.querySelector("span.a-price > span.a-offscreen").textContent,
+        product
+      );
+    } catch (e) {}
 
-  //   await browser.close();
+    try {
+      imgUrl = await page.evaluate(
+        (el) => el.querySelector(".s-image").getAttribute("src"),
+        product
+      );
+    } catch (e) {}
+
+    if (title !== "Null") {
+      items.push({ title, price, imgUrl });
+    }
+  }
+
+  console.log(items);
 })();
